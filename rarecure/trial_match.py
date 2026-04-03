@@ -1,27 +1,39 @@
-"""Module 4: Trials. [FIX 2] async httpx [FIX 4] specific exceptions [FIX 5] ontology."""
-import asyncio
+"""Module 4: Trials. [FIX 2] concurrent requests [FIX 4] specific exceptions [FIX 5] ontology."""
 import logging
 import re
-import httpx
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import requests
+
 from rarecure.config import API, TRIAL, CANCER_ONTOLOGY, API_SEMAPHORE_LIMIT
 from rarecure.models import TrialMatch, TrialReport, PatientProfile
 
 logger = logging.getLogger(__name__)
-_semaphore = asyncio.Semaphore(API_SEMAPHORE_LIMIT)
+
+_SESSION = None
+
+def _get_session():
+    global _SESSION
+    if _SESSION is None:
+        _SESSION = requests.Session()
+        _SESSION.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; RareCure/1.0)",
+            "Accept": "application/json",
+        })
+    return _SESSION
 
 
-async def _search_async(client: httpx.AsyncClient, q: str, n: int = 50) -> list[dict]:
-    """Single trial search with semaphore rate limiting."""
-    async with _semaphore:
-        r = await client.get(
-            f"{API.CLINICAL_TRIALS}/studies",
-            params={
-                "query.cond": q,
-                "filter.overallStatus": ",".join(TRIAL.STATUS_FILTER),
-                "pageSize": min(n, TRIAL.MAX_RESULTS_PER_QUERY),
-                "format": "json"},
-            timeout=30)
-        r.raise_for_status()
+def _search_sync(q: str, n: int = 50) -> list[dict]:
+    """Single trial search via requests (avoids httpx 403)."""
+    r = _get_session().get(
+        f"{API.CLINICAL_TRIALS}/studies",
+        params={
+            "query.cond": q,
+            "filter.overallStatus": ",".join(TRIAL.STATUS_FILTER),
+            "pageSize": min(n, TRIAL.MAX_RESULTS_PER_QUERY),
+            "format": "json"},
+        timeout=30)
+    r.raise_for_status()
     st = r.json().get("studies", [])
     logger.info(f"CT.gov: {len(st)} for '{q}'")
     return st
@@ -77,22 +89,20 @@ def _expand_queries(cancer_type, genes):
     return list(dict.fromkeys(qs))
 
 
-async def _search_all_async(queries: list[str]) -> dict[str, dict]:
-    """[FIX 2] Concurrent trial searches across all expanded queries."""
+def _search_all(queries: list[str]) -> dict[str, dict]:
+    """Concurrent trial searches via ThreadPoolExecutor."""
     all_st = {}
-    async with httpx.AsyncClient(
-        headers={"Accept": "application/json", "User-Agent": "RareCure/1.0"}
-    ) as client:
-        tasks = [_search_async(client, q) for q in queries]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-    for r in results:
-        if isinstance(r, Exception):
-            logger.exception(f"Trial search failed: {r}")
-            continue
-        for s in r:
-            nct = s.get("protocolSection", {}).get("identificationModule", {}).get("nctId", "")
-            if nct and nct not in all_st:
-                all_st[nct] = s
+    with ThreadPoolExecutor(max_workers=API_SEMAPHORE_LIMIT) as pool:
+        futures = {pool.submit(_search_sync, q): q for q in queries}
+        for fut in as_completed(futures):
+            q = futures[fut]
+            try:
+                for s in fut.result():
+                    nct = s.get("protocolSection", {}).get("identificationModule", {}).get("nctId", "")
+                    if nct and nct not in all_st:
+                        all_st[nct] = s
+            except (requests.RequestException, KeyError) as e:
+                logger.exception(f"Trial search failed for '{q}'")
     return all_st
 
 
@@ -105,27 +115,7 @@ def match_trials(patient, genes=None):
         qs.append("MSI-high")
     qs = list(dict.fromkeys(qs))
 
-    # [FIX 2] Async concurrent search
-    try:
-        all_st = asyncio.run(_search_all_async(qs))
-    except RuntimeError:
-        logger.warning("Event loop running, sync fallback")
-        all_st = {}
-        for q in qs:
-            try:
-                for s in httpx.get(
-                    f"{API.CLINICAL_TRIALS}/studies",
-                    params={"query.cond": q,
-                            "filter.overallStatus": ",".join(TRIAL.STATUS_FILTER),
-                            "pageSize": TRIAL.MAX_RESULTS_PER_QUERY,
-                            "format": "json"},
-                    timeout=30
-                ).json().get("studies", []):
-                    nct = s.get("protocolSection", {}).get("identificationModule", {}).get("nctId", "")
-                    if nct and nct not in all_st:
-                        all_st[nct] = s
-            except (httpx.RequestError, httpx.HTTPStatusError) as e:
-                logger.exception(f"'{q}' failed")
+    all_st = _search_all(qs)
 
     matches = []
     for nct, s in all_st.items():

@@ -6,6 +6,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Optional
 import httpx
+import requests
 from rarecure.config import SCORING, COMMON_GENES_BY_CANCER
 from rarecure.models import (
     PatientProfile, InputMode, TreatmentPlan, EvidenceTier,
@@ -95,7 +96,7 @@ class RareCurePipeline:
         try:
             logger.info("M4: Trials...")
             tr = match_trials(patient, vr.actionable_genes if vr else [])
-        except (httpx.RequestError, httpx.HTTPStatusError, KeyError) as e:
+        except (requests.RequestException, httpx.RequestError, httpx.HTTPStatusError, KeyError) as e:
             logger.exception("M4 failed")
             warnings.append(f"M4: {type(e).__name__}: {e}")
 

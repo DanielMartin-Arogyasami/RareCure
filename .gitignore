@@ -53,6 +53,7 @@ data/hla/
 # --- Pipeline outputs ---
 chroma_db/
 results/
+paper/figures/
 *.treatment_plan.json
 treatment_plan.json
 

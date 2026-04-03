@@ -1,0 +1,28 @@
+{
+  "patient_id": "TCGA-KD-A5QU",
+  "input_mode": "genomic",
+  "patient_summary": "41F, leiomyosarcoma, stage ?, 0 lines",
+  "scoring_weights": {
+    "evidence_strength": 0.2,
+    "access_feasibility": 0.2,
+    "expected_response": 0.2,
+    "safety_profile": 0.2,
+    "cost": 0.2,
+    "rationale": "FALLBACK",
+    "clamped": false
+  },
+  "scoring_weights_stability_cv": 0.0,
+  "tier_1": [],
+  "tier_2": [],
+  "tier_3": [],
+  "tier_4": [],
+  "neoantigen_candidates": [],
+  "total_options": 0,
+  "runtime_seconds": 3.87,
+  "api_cost_usd": 0.0,
+  "warnings": [
+    "Used common sarcoma genes.",
+    "No drug matches."
+  ],
+  "pipeline_version": "1.0.0"
+}

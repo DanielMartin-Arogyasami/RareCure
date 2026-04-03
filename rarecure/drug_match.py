@@ -14,7 +14,7 @@ from typing import Optional
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from rarecure.config import API, DRUG, API_SEMAPHORE_LIMIT
+from rarecure.config import API, DRUG, API_SEMAPHORE_LIMIT, ONCOKB_API_KEY
 from rarecure.models import DrugMatch, DrugReport, EvidenceTier, AnnotatedVariant, VariantTier
 
 logger = logging.getLogger(__name__)
@@ -63,10 +63,14 @@ def _oncokb_cache():
             return _ONCOKB
         logger.info("Loading OncoKB (one-time)...")
         try:
+            headers = {"Accept": "application/json"}
+            if ONCOKB_API_KEY:
+                headers["Authorization"] = f"Bearer {ONCOKB_API_KEY}"
+
             r = httpx.get(
                 f"{API.ONCOKB}/utils/allAnnotatedVariants",
                 timeout=60,
-                headers={"Accept": "application/json"})
+                headers=headers)
             r.raise_for_status()
             _ONCOKB = {}
             for e in r.json():
@@ -106,33 +110,62 @@ async def _dgidb_fetch_async(client: httpx.AsyncClient, genes: list[str]) -> lis
     return out
 
 
+_CIVIC_QUERY = """
+query($gene: String!) {
+  gene(entrezSymbol: $gene) {
+    name
+    variants(first: 50) {
+      nodes {
+        name
+        singleVariantMolecularProfile {
+          evidenceItems(first: 50) {
+            nodes {
+              evidenceLevel
+              evidenceDirection
+              significance
+              disease { name }
+              therapies { name }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
+_CIVIC_LEVEL_MAP = {
+    "A": "A", "B": "B", "C": "C", "D": "D", "E": "E",
+}
+
+
 async def _civic_fetch_async(client: httpx.AsyncClient, gene: str) -> list[dict]:
-    """Fetch CIViC evidence with semaphore rate limiting."""
+    """Fetch CIViC evidence via GraphQL with semaphore rate limiting."""
     async with _semaphore:
-        r = await client.get(
-            f"{API.CIVIC}/genes",
-            params={"identifier": gene, "identifier_type": "entrez_symbol"},
+        r = await client.post(
+            API.CIVIC,
+            json={"query": _CIVIC_QUERY, "variables": {"gene": gene}},
+            headers={"Content-Type": "application/json"},
             timeout=30)
-        if r.status_code == 404:
-            return []
         r.raise_for_status()
     data = r.json()
+    gene_data = (data.get("data") or {}).get("gene")
+    if not gene_data:
+        return []
     out = []
-    recs = data if isinstance(data, list) else data.get("records", [data])
-    for rec in recs:
-        if not isinstance(rec, dict):
-            continue
-        for var in rec.get("variants", []):
-            for ev in var.get("evidence_items", []):
-                for th in ev.get("therapies", []):
-                    n = th.get("name", "").strip()
-                    if n:
-                        out.append({
-                            "gene": gene, "drug_name": n,
-                            "variant": var.get("name", ""),
-                            "evidence_level": ev.get("evidence_level", ""),
-                            "disease": ev.get("disease", {}).get("name", ""),
-                            "source_db": "CIViC"})
+    for var in (gene_data.get("variants") or {}).get("nodes", []):
+        mp = var.get("singleVariantMolecularProfile") or {}
+        for ev in (mp.get("evidenceItems") or {}).get("nodes", []):
+            for th in ev.get("therapies") or []:
+                n = (th.get("name") or "").strip()
+                if n:
+                    raw_level = str(ev.get("evidenceLevel") or "").upper()
+                    out.append({
+                        "gene": gene, "drug_name": n,
+                        "variant": var.get("name", ""),
+                        "evidence_level": _CIVIC_LEVEL_MAP.get(raw_level, raw_level),
+                        "disease": (ev.get("disease") or {}).get("name", ""),
+                        "source_db": "CIViC"})
     return out
 
 

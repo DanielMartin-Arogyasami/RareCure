@@ -3,8 +3,10 @@ import os
 from pathlib import Path
 from dataclasses import dataclass, field
 from enum import Enum
+from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).parent.parent
+load_dotenv(ROOT_DIR / ".env")
 DATA_DIR = ROOT_DIR / "data"
 RESULTS_DIR = ROOT_DIR / "results"
 CHROMA_DIR = ROOT_DIR / "chroma_db"
@@ -30,7 +32,7 @@ LOCAL_LLAMA_MODEL = "meta-llama/Llama-3.1-70B-Instruct"
 @dataclass(frozen=True)
 class APIEndpoints:
     DGIDB: str = "https://dgidb.org/api/v2"
-    CIVIC: str = "https://civicdb.org/api"
+    CIVIC: str = "https://civicdb.org/api/graphql"
     ONCOKB: str = "https://www.oncokb.org/api/v1"
     CHEMBL: str = "https://www.ebi.ac.uk/chembl/api/data"
     CLINICAL_TRIALS: str = "https://clinicaltrials.gov/api/v2"
