@@ -1,0 +1,25 @@
+{
+  "patient_id": "PATIENT_F",
+  "input_mode": "clinical",
+  "age": 55,
+  "sex": "M",
+  "cancer_type": "spindle_cell_sarcoma",
+  "cancer_subtype": "spindle cell sarcoma NOS",
+  "primary_site": "right gluteal region",
+  "stage": "IV",
+  "metastatic_sites": ["lung", "retroperitoneum", "left 5th rib"],
+  "prior_treatments": [
+    {"drug_name": "surgical excision", "mechanism": "surgery", "outcome": "partial_response"},
+    {"drug_name": "radiation therapy", "mechanism": "radiation", "outcome": "progressive_disease"},
+    {"drug_name": "targeted therapy", "mechanism": "targeted", "outcome": "unknown"},
+    {"drug_name": "salvage chemotherapy", "mechanism": "cytotoxic", "outcome": "partial_response"}
+  ],
+  "lines_exhausted": 2,
+  "current_status": "partial metabolic response, SUV 6.7 to 3.2",
+  "tmb_status": "unknown",
+  "msi_status": "unknown",
+  "pdl1_status": "unknown",
+  "preference": "maximize_survival",
+  "geography": "India",
+  "max_travel_willing": "willing to travel to USA"
+}

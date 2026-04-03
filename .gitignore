@@ -1,0 +1,77 @@
+# --- Secrets & API keys ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.secret
+credentials.json
+secrets.json
+config_local.py
+
+# --- Python build artifacts ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+*.so
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Test & coverage ---
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+
+# --- Patient data & large files ---
+data/*.maf
+data/*.vcf
+data/*.gz
+data/*.bam
+data/*.bai
+data/*.fastq
+data/*.fasta
+data/tcga/
+data/hla/
+!data/sample/
+!data/README.md
+
+# --- Pipeline outputs ---
+chroma_db/
+results/
+*.treatment_plan.json
+treatment_plan.json
+
+# --- Notebooks ---
+.ipynb_checkpoints/
+
+# --- IDE & OS ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- Docker ---
+*.log
+docker-compose.override.yml
+
+# --- Cursor ---
+.cursor/
