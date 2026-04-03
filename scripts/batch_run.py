@@ -197,7 +197,8 @@ def run_batch(args):
         row = {"patient_id": patient.patient_id, "cancer_type": patient.cancer_type, "mode": mode}
         try:
             plan = pipeline.run(patient)
-            result_path.write_text(plan.model_dump_json(indent=2))
+
+            result_path.write_text(plan.model_dump_json(indent=2), encoding="utf-8")
 
             row.update({
                 "status": "success", "total_options": plan.total_options,
