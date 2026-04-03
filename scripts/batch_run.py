@@ -217,7 +217,7 @@ def run_batch(args):
 
         results_summary.append(row)
         if len(results_summary) % 10 == 0:
-            pd.DataFrame(results_summary).to_csv(summary_path, index=False)
+            pd.DataFrame(results_summary).to_csv(summary_path, index=False, encoding="utf-8")
 
     summary_df = pd.DataFrame(results_summary)
     summary_df.to_csv(summary_path, index=False)
