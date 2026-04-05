@@ -46,7 +46,6 @@ def _tier(si, pp, vc):
         return VariantTier.UNCERTAIN
     return VariantTier.LIKELY_PASSENGER
 
-
 def ingest_maf(maf_path, patient_id=None, id_fn=None):
     maf_path = Path(maf_path)
     logger.info(f"MAF (chunked): {maf_path}")
@@ -58,7 +57,9 @@ def ingest_maf(maf_path, patient_id=None, id_fn=None):
     ):
         chunk = chunk[chunk["Variant_Classification"].isin(CODING_VARIANT_TYPES)]
         if patient_id:
-            chunk = chunk[chunk["Tumor_Sample_Barcode"].str.startswith(patient_id)]
+            # [ROBUST FIX] Force string conversion, strip whitespace, and slice to exactly 12 characters.
+            chunk = chunk[chunk["Tumor_Sample_Barcode"].astype(str).str.strip().str[:12] == str(patient_id).strip()[:12]]
+            
         for _, row in chunk.iterrows():
             pid = ext(row["Tumor_Sample_Barcode"])
             si, pp = _sc(row.get("SIFT")), _sc(row.get("PolyPhen"))
@@ -71,6 +72,7 @@ def ingest_maf(maf_path, patient_id=None, id_fn=None):
                 vaf=_vaf(row), sift_score=si, polyphen_score=pp,
                 tier=_tier(si, pp, row["Variant_Classification"]))
             pvars.setdefault(pid, []).append(v)
+            
     reports = {}
     for pid, vs in pvars.items():
         act = list(set(v.gene for v in vs if v.tier.value <= 2))
@@ -78,9 +80,9 @@ def ingest_maf(maf_path, patient_id=None, id_fn=None):
             patient_id=pid, total_variants_raw=len(vs),
             total_variants_coding=len(vs), variants=vs,
             actionable_genes=act, zero_variant_flag=len(vs) == 0)
+            
     logger.info(f"Processed {len(reports)} patients")
     return reports
-
 
 if __name__ == "__main__":
     import sys

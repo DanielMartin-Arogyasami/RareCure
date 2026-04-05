@@ -153,7 +153,7 @@ def build_profiles(clinical_data, maf_patient_ids, mode):
             lines_exhausted=0,
             current_status="historical TCGA cohort",
             # We keep the path; the pipeline will handle the barcode matching internally
-            maf_path=str(ROOT / "data" / "tcga" / "TCGA-SARC.maf.gz") if input_mode == InputMode.GENOMIC else None,
+            maf_path=str(ROOT / "data" / "tcga" / "TCGA-SARC.maf.txt") if input_mode == InputMode.GENOMIC else None,
         ))
     
     print(f"Successfully queued {len(profiles)} patients for processing.")
@@ -166,7 +166,7 @@ def run_batch(args):
     clinical_data = load_clinical_data(ROOT / "data" / "tcga" / "clinical.tsv")
     hla_lookup = load_hla_data(ROOT / "data" / "hla" / "thorsson_hla_calls.tsv")
 
-    maf_path = ROOT / "data" / "tcga" / "TCGA-SARC.maf.gz"
+    maf_path = ROOT / "data" / "tcga" / "TCGA-SARC.maf.txt"
     maf_patient_ids = set()
     if not args.clinical_only and maf_path.exists():
         for chunk in pd.read_csv(maf_path, sep="\t", comment="#", low_memory=False, chunksize=100_000, usecols=["Tumor_Sample_Barcode"]):
@@ -220,7 +220,7 @@ def run_batch(args):
             pd.DataFrame(results_summary).to_csv(summary_path, index=False, encoding="utf-8")
 
     summary_df = pd.DataFrame(results_summary)
-    summary_df.to_csv(summary_path, index=False)
+    summary_df.to_csv(summary_path, index=False, encoding="utf-8")
 
     total_elapsed = time.time() - total_start
     llm = get_llm_client()

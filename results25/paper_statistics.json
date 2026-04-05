@@ -1,0 +1,11 @@
+{
+  "total_patients": 25,
+  "total_actionable": 25,
+  "genomic_matches": 0,
+  "fallback_matches": 25,
+  "tar_pct": 100.0,
+  "bmr_pct": 0.0,
+  "gcr_pct": 100.0,
+  "total_api_cost_usd": 2.8904400000000003,
+  "clamped_runs": 0
+}
